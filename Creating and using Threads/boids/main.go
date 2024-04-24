@@ -10,7 +10,7 @@ import (
 
 const (
 	screenWidth, screenHeight = 640, 320
-	boidCount                 = 100
+	boidCount                 = 500
 	viewRadius                = 13
 	adjRate                   = 0.015
 )
@@ -19,7 +19,7 @@ var (
 	green   = color.RGBA{10, 255, 50, 255}
 	boids   [boidCount]*Boid
 	boidMap [screenWidth + 1][screenHeight + 1]int
-	lock    = sync.Mutex{}
+	rWlock  = sync.RWMutex{}
 )
 
 type Game struct{}

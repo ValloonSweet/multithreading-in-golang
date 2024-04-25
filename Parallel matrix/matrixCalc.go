@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -11,17 +12,12 @@ const (
 )
 
 var (
-	matrixA = [matrixSize][matrixSize]int{
-		{3, 1, -4},
-		{2, -3, 1},
-		{5, -2, 0},
-	}
-	matrixB = [matrixSize][matrixSize]int{
-		{1, -2, -1},
-		{0, 5, 4},
-		{-1, -2, 3},
-	}
-	result = [matrixSize][matrixSize]int{}
+	matrixA   = [matrixSize][matrixSize]int{}
+	matrixB   = [matrixSize][matrixSize]int{}
+	result    = [matrixSize][matrixSize]int{}
+	rwLock    = sync.RWMutex{}
+	cond      = sync.NewCond(rwLock.RLocker())
+	waitGroup = sync.WaitGroup{}
 )
 
 func generateRandomMatrix(matrix *[matrixSize][matrixSize]int) {
@@ -33,22 +29,32 @@ func generateRandomMatrix(matrix *[matrixSize][matrixSize]int) {
 }
 
 func workOutRow(row int) {
-	for col := 0; col < matrixSize; col++ {
-		for i := 0; i < matrixSize; i++ {
-			result[row][col] += matrixA[row][i] * matrixB[i][col]
+	rwLock.RLock()
+	for {
+		waitGroup.Done()
+		cond.Wait()
+		for col := 0; col < matrixSize; col++ {
+			for i := 0; i < matrixSize; i++ {
+				result[row][col] += matrixA[row][i] * matrixB[i][col]
+			}
 		}
 	}
 }
 
 func main() {
 	fmt.Println("Working...")
+	for row := 0; row < matrixSize; row++ {
+		go workOutRow(row)
+	}
 	start := time.Now()
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 100000; i++ {
+		waitGroup.Wait()
+		rwLock.Lock()
 		generateRandomMatrix(&matrixA)
 		generateRandomMatrix(&matrixB)
-		for row := 0; row < matrixSize; row++ {
-			workOutRow(row)
-		}
+		waitGroup.Add((matrixSize))
+		rwLock.Unlock()
+		cond.Broadcast()
 	}
 	elapsed := time.Since(start)
 	fmt.Println("Done ", elapsed)
